@@ -368,14 +368,14 @@ for i in range(6):
     
     part = i + 1
     
-    # Sea surface height anomoly
+    # Sea surface height anomaly
     filename='./'+dataset_trn+'/SSHA/'+'ssha'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['ssha'][:]
     data= data.transpose(0,2,1)
     SSHA[:,:,i*60:(i+1)*60]=data[time_trn,M1[0]:M2[0]+1:2,::2]
     
-    # Sea surface temperature anomoly
+    # Sea surface temperature anomaly
     filename='./'+dataset_trn+'/SSTA/'+'ssta'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['ssta'][:]
@@ -383,7 +383,7 @@ for i in range(6):
     SSTA[:,:,i*60:(i+1)*60]=data[time_trn,M1[0]:M2[0]+1:2,::2]
     
     
-    # Subsurface temperature anomoly
+    # Subsurface temperature anomaly
     filename='./'+dataset_trn+'/'+str(depth)+'m/'+'SUBTA'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['subta'][:]
@@ -430,21 +430,21 @@ for i in range(6):
     
     part = i + 1
     
-    # Sea surface height anomoly
+    # Sea surface height anomaly
     filename='./'+dataset_tst1+'/SSHA/'+'ssha'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['ssha'][:]
     data= data.transpose(0,2,1)
     SSHA1[:,:,i*60:(i+1)*60]=data[time_tst1,M1[0]:M2[0]+1:2,::2]
 
-    # Sea surface temperature anomoly
+    # Sea surface temperature anomaly
     filename='./'+dataset_tst1+'/SSTA/'+'ssta'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['ssta'][:]
     data= data.transpose(0,2,1)
     SSTA1[:,:,i*60:(i+1)*60]=data[time_tst1,M1[0]:M2[0]+1:2,::2]
     
-    # Subsurface temperature anomoly
+    # Subsurface temperature anomaly
     filename='./'+dataset_tst1+'/'+str(depth)+'m/'+'SUBTA'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['subta'][:]
@@ -491,7 +491,7 @@ for i in range(6):
     
     part = i + 1
     
-    # Sea surface height anomoly
+    # Sea surface height anomaly
     filename='./'+dataset_tst2+'/SSHA/'+'ssha'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['ssha'][:]
@@ -499,7 +499,7 @@ for i in range(6):
     SSHA2[:,:,i*60:(i+1)*60]=data[time_tst2,M1[0]:M2[0]+1:2,::2]
 
 
-    # Sea surface temperature anomoly
+    # Sea surface temperature anomaly
     filename='./'+dataset_tst2+'/SSTA/'+'ssta'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['ssta'][:]
@@ -507,7 +507,7 @@ for i in range(6):
     SSTA2[:,:,i*60:(i+1)*60]=data[time_tst2,M1[0]:M2[0]+1:2,::2]
     
     
-    # Subsurface temperature anomoly
+    # Subsurface temperature anomaly
     filename='./'+dataset_tst2+'/'+str(depth)+'m/'+'SUBTA'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['subta'][:]
