@@ -1,4 +1,4 @@
-This package is designed for subsurface Marine Heatwave (MHW) detection, using sea surface temperature anomaly and sea surface height anomaly as predictors. The implemented methods include a geographically and seasonally varying coefficient (GSVC) linear regression, CNN classification (CNN_cla) learning, CNN regression (CNN_reg) learning, and ordinary least square (OLS) regression.
+This is the package for subsurface Marine Heatwave (MHW) detection, using sea surface temperature anomaly and sea surface height anomaly as predictors. The implemented methods include a geographically and seasonally varying coefficient (GSVC) linear regression, CNN classification (CNN_cla) learning, CNN regression (CNN_reg) learning, and ordinary least square (OLS) regression.
 
 The package structure is outlined as follows:
 
