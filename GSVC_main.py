@@ -167,21 +167,21 @@ def Calculate_beta_by_GSVC(rank,LON,LAT,width_time,width_space,depth):
     add=0
     for i in range(len(J)): 
         
-        # Sea surface height anomoly
+        # Sea surface height anomaly
         filename='./SSHA/'+'ssha'+str(J[i])+'.mat'
         data=h5py.File(filename,mode='r')
         data = data['ssha'][:]
         data= data.transpose(2,1,0)
         SSHA[width_space:width_space+height_data_block,add:add+len(p[i]),:]=data[:,p[i],:]
     
-        # Sea surface temperature anomoly
+        # Sea surface temperature anomaly
         filename='./SSTA/'+'ssta'+str(J[i])+'.mat'
         data=h5py.File(filename,mode='r')
         data = data['ssta'][:]
         data= data.transpose(2,1,0)
         SSTA[width_space:width_space+height_data_block,add:add+len(p[i]),:]=data[:,p[i],:]
         
-        # Subsurface temperature anomoly
+        # Subsurface temperature anomaly
         filename='./SUBTA/'+str(depth)+'m/'+'subta'+str(J[i])+'.mat'
         data=h5py.File(filename,mode='r')
         data = data['subta'][:]
