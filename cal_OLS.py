@@ -40,19 +40,19 @@ for p in range(1,7):
     part =  math.floor(N/120)+1
     
         
-    # Sea surface height anomoly
+    # Sea surface height anomaly
     filename='./'+dataname+'/SSHA/'+'ssha'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['ssha'][:]
     SSHA= data.transpose(2,1,0)
        
-    # Sea surface temperature anomoly
+    # Sea surface temperature anomaly
     filename='./'+dataname+'/SSTA/'+'ssta'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['ssta'][:]
     SSTA= data.transpose(2,1,0)
     
-    # Subsurface temperature anomoly
+    # Subsurface temperature anomaly
     filename='./'+dataname+'/'+str(depth)+'m/'+'SUBTA'+str(part)+'.mat'
     data=h5py.File(filename,mode='r')
     data = data['subta'][:]
