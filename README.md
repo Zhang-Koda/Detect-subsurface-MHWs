@@ -10,4 +10,4 @@ The package structure is outlined as follows:
 
 4. **OLS Model:** Train an OLS model at each grid to estimate T' and subsequently detect pointwise MHWs.
 
-We will update to design an example for a specific small area. Welcome any criticism and corrections.
+We will update to design an example for a specific small area. Welcome to use and modify.
