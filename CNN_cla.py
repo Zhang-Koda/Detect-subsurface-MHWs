@@ -246,13 +246,13 @@ def train_CNN_model(net, train_iter, tst1_iter, tst2_iter, num_epochs, num_lat, 
 
 
 depth = 25
-Batch_size = 512
+Batch_size = 256
 dataset_trn = 'GLORYS'
 dataset_tst1 = 'ECCO2'
 dataset_tst2 = 'HYCOM'
 
 LON = np.arange(0.125, 360.125, 1)
-LAT = np.arange(-59.375, 60.625, 1)
+LAT = np.arange(-57.375, 58.625, 1)
 
 num_lon = len(LON)
 num_lat = len(LAT)
