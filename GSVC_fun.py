@@ -36,8 +36,8 @@ def GSVC(X1,X2,Y,weight):
    
    
     # Define X & Y : assign weight
-    X        =  np.hstack((X1*weight,X2*weight,weight))
-    Y        =  Y * weight
+    X     =  np.column_stack((X1*np.sqrt(weight), X2*np.sqrt(weight), np.sqrt(weight)))
+    Y     =  Y * np.sqrt(weight)
  
     
     # Create model
