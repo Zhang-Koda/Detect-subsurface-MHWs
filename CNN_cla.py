@@ -5,7 +5,6 @@ Created on Mon Sep 07 15:31:35 2023
 @author: kelis
 """
 
-
 import numpy as np
 import h5py
 import scipy.io as scio
@@ -13,7 +12,7 @@ import torch
 from torch import nn
 from torch.utils.data import TensorDataset
 from torch.utils.data import DataLoader
-from datetime import date
+import datetime
 from d2l import torch as d2l
 from datetime import timedelta
 
@@ -48,57 +47,15 @@ def standardization(input_data,comp_data):
     '''
     if input_data.size == 0 or comp_data.size == 0:
         raise ValueError("Input arrays must not be empty.")
-        
-    comp_data_flat = comp_data.flatten()
-    comp_data_flat = comp_data_flat[~np.isnan(comp_data_flat)]
-
-    mean_value = np.mean(comp_data_flat)
-    std_deviation = np.std(comp_data_flat)
+    
+    mean_value = np.nanmean(comp_data_flat)
+    std_deviation = np.nanstd(comp_data_flat)
 
     if std_deviation == 0:
         raise ValueError("Standard deviation is zero. Cannot perform standardization.")
-
+        
     standardized_data = (input_data - mean_value) / std_deviation
     return standardized_data
-
-
-
-
-def evaluate_accuracy_gpu(net, data_iter, device=None): 
-    '''
-    Evaluate the accuracy of a neural network model on a dataset using GPU acceleration.
-
-    Parameters:
-    - net (nn.Module): The neural network model.
-    - data_iter: The data iterator.
-    - device (torch.device, optional): The device on which to perform computations. Defaults to None.
-
-    Returns:
-    - float: The accuracy of the model on the dataset.
-    
-    '''
-    
-    if isinstance(net, nn.Module):
-        net.eval() 
-        if not device:
-            device = next(iter(net.parameters())).device
-            
-    metric = d2l.Accumulator(2)
-    
-    with torch.no_grad():
-        for X, y in data_iter:
-            if isinstance(X, list):
-                X = [x.to(device) for x in X]
-            else:
-                X = X.to(device)
-            y = y.to(device)
-            
-            metric.add(d2l.accuracy(net(X), y), y.numel())   
-            
-    accuracy = metric[0] / metric[1]
-    
-    return accuracy
-
 
 
 def obtain_confusion_matrix(net, data_iter, num_lat, num_lon):
@@ -119,7 +76,6 @@ def obtain_confusion_matrix(net, data_iter, num_lat, num_lon):
 
     if isinstance(net, nn.Module):
         net.eval() 
-
     A = torch.zeros(num_lat, num_lon, device=device)
     B = torch.zeros(num_lat, num_lon, device=device)
     C = torch.zeros(num_lat, num_lon, device=device)
@@ -135,17 +91,42 @@ def obtain_confusion_matrix(net, data_iter, num_lat, num_lon):
             Y_pred = (probabilities[:, 0, :, :] <= probabilities[:, 1, :, :]).int()
 
             temp = Y_true - Y_pred
-
             A += torch.sum((temp == 0) & (Y_true == 1), dim=0)
             B += torch.sum((temp == -1), dim=0)
             C += torch.sum((temp == 1), dim=0)
             D += torch.sum((temp == 0) & (Y_true == 0), dim=0)
-
     return A, B, C, D   
 
-    
- 
+def evaluate_accuracy_gpu(net, data_iter, device=None): 
+    '''
+    Evaluate the accuracy of a neural network model on a dataset using GPU acceleration.
 
+    Parameters:
+    - net (nn.Module): The neural network model.
+    - data_iter: The data iterator.
+    - device (torch.device, optional): The device on which to perform computations. Defaults to None.
+
+    Returns:
+    - float: The accuracy of the model on the dataset.
+    
+    '''
+    if isinstance(net, nn.Module):
+        net.eval() 
+        if not device:
+            device = next(iter(net.parameters())).device  
+    metric = d2l.Accumulator(2)
+    with torch.no_grad():
+        for X, y in data_iter:
+            if isinstance(X, list):
+                X = [x.to(device) for x in X]
+            else:
+                X = X.to(device)
+            y = y.to(device)
+            
+            metric.add(d2l.accuracy(net(X), y), y.numel())      
+    accuracy = metric[0] / metric[1]
+    return accuracy
+    
 
 def evaluate_loss_gpu(net, data_iter,loss, device=None): 
     '''
@@ -168,7 +149,6 @@ def evaluate_loss_gpu(net, data_iter,loss, device=None):
             device = next(iter(net.parameters())).device
  
     metric = d2l.Accumulatorz(2)
-      
     with torch.no_grad():
         for X, y in data_iter:
             if isinstance(X, list):
@@ -176,9 +156,7 @@ def evaluate_loss_gpu(net, data_iter,loss, device=None):
             else:
                 X = X.to(device)
             y = y.to(device)
-            
             metric.add(loss(net(X), y), y.numel())   
-            
     return metric[0] / num_batches
 
 
@@ -223,30 +201,23 @@ def train_CNN_model(net, train_iter, tst1_iter, tst2_iter, num_epochs, num_lat, 
     loss = nn.CrossEntropyLoss(weight=weights)  
     optimizer = torch.optim.Adadelta(net.parameters())
 
-
     timer = d2l.Timer()
-    
     
     tst1_loss = np.empty(0)
     tst2_loss = np.empty(0)
     
     for epoch in range(num_epochs):
         print(f'Epoch {epoch + 1}/{num_epochs}')
-        
-       
+
         metric = d2l.Accumulator(3)
         net.train()
-
 
         for i, (X, y) in enumerate(train_iter):  
             timer.start()
             optimizer.zero_grad()
             X = X.to(device)
             y = y.to(device)
-
-
             y_hat = net(X)
-            
             l = loss(y_hat, y)
             l.backward()
             optimizer.step()   
@@ -282,7 +253,7 @@ def train_CNN_model(net, train_iter, tst1_iter, tst2_iter, num_epochs, num_lat, 
 
 
 depth = 25
-Batch_size = 365
+Batch_size = 512
 dataset_trn = 'GLORYS'
 dataset_tst1 = 'ECCO2'
 dataset_tst2 = 'HYCOM'
@@ -307,26 +278,21 @@ YY_3  =  np.arange(-59.875, 59.875, 0.5)
 
 
 # time for training and test datasets
-year_from1 = 1993
-year_trn_begin  =  1994
-year_trn_end    =  2019
+year_trn_begin  =  1993
+year_trn_end    =  2020
 
-year_from2 = 1992
-year_tst1_begin  =  1994
-year_tst1_end    =  2019
+year_tst_begin1  =  1993
+year_tst_end1    =  2020
 
-year_from3 = 1993
-year_tst2_begin  =  1994
-year_tst2_end    =  2011
+year_tst_begin2  =  1993
+year_tst_end2    =  2012
 
-time_trn = np.arange(date.toordinal(date(year_trn_begin, 1, 1)), date.toordinal(date(year_trn_end, 12, 31) + timedelta(days=1))) - date.toordinal(date(year_from1, 1, 1))
-time_tst1 = np.arange(date.toordinal(date(year_tst1_begin, 1, 1)), date.toordinal(date(year_tst1_end, 12, 31) + timedelta(days=1))) - date.toordinal(date(year_from2, 1, 1))
-time_tst2 = np.arange(date.toordinal(date(year_tst2_begin, 1, 1)), date.toordinal(date(year_tst2_end, 12, 31) + timedelta(days=1))) - date.toordinal(date(year_from3, 1, 1))
-
-time_trn = time_trn.astype(int)
-time_tst1 = time_tst1.astype(int)
-time_tst2 = time_tst2.astype(int)
-
+#ECCO2
+length_trn1  =  (datetime.date(year_trn_end, 12, 31)-datetime.date(year_trn_begin, 1, 1)).days+1
+#GLORYS
+length_tst2   =  (datetime.date(year_tst_end1, 12, 31)-datetime.date(year_tst_begin1, 1, 1)).days+1
+#HYCOM
+length_tst3   =   (datetime.date(year_tst_end2, 12, 31)-datetime.date(year_tst_begin2, 1, 1)).days+1
 
 
 
@@ -337,42 +303,21 @@ time_tst2 = time_tst2.astype(int)
 """
 
 # =================================training dataset============================
-
-SSHA   =   np.full([len(time_trn),num_lat, num_lon], np.nan)
-SSTA    =   np.full([len(time_trn),num_lat, num_lon], np.nan)
-SMHW     =   np.full([len(time_trn),num_lat, num_lon], np.nan)
-
-M1    =  np.where(YY_1==LAT[0])[0]
-M2    =  np.where(YY_1==LAT[-1])[0]
-N1    =  np.where(XX_1==LON[0])[0]
-N2    =  np.where(XX_1==LON[-1])[0]
-
-
+# Sea surface height anomaly
 print('load training dataset')
-for i in range(6): 
-    
-    part = i + 1
-    
-    # Sea surface height anomaly
-    filename='./'+dataset_trn+'/SSHA/'+'ssha'+str(part)+'.mat'
-    data=h5py.File(filename,mode='r')
-    data = data['ssha'][:]
-    data= data.transpose(0,2,1)
-    SSHA[:,:,i*60:(i+1)*60]=data[time_trn,M1[0]:M2[0]+1:2,::2]
-    
-    # Sea surface temperature anomaly
-    filename='./'+dataset_trn+'/SSTA/'+'ssta'+str(part)+'.mat'
-    data=h5py.File(filename,mode='r')
-    data = data['ssta'][:]
-    data= data.transpose(0,2,1)
-    SSTA[:,:,i*60:(i+1)*60]=data[time_trn,M1[0]:M2[0]+1:2,::2]
-    
-    # Subsurface marine heatwaves
-    filename='./'+dataset_trn+'/'+str(depth)+'m/'+'smhw'+str(part)+'.mat'
-    data=h5py.File(filename,mode='r')
-    data = data['smhw'][:]
-    data= data.transpose(0,2,1)
-    SMHW[:,:,i*60:(i+1)*60]=data[time_trn,M1[0]:M2[0]+1:2,::2]
+filename='./'+dataset_trn+'/SSHA/'+'ssha.mat'
+data=h5py.File(filename,mode='r')
+SSHA= data['ssha'][:]
+
+# Sea surface temperature anomaly
+filename='./'+dataset_trn+'/SSTA/'+'ssta.mat'
+data=h5py.File(filename,mode='r')
+SSTA= data['ssta'][:]
+
+# Subsurface marine heatwaves
+filename='./'+dataset_trn+'/'+str(depth)+'m/'+'smhw.mat'
+data=h5py.File(filename,mode='r')
+SMHW= data['smhw'][:]
 
 
 # Normalization
@@ -396,43 +341,20 @@ trn_iter_shuffle = DataLoader(dataset=train_ids, batch_size=Batch_size, shuffle=
 
 
 # ================================= tst1 dataset ==============================
+# Sea surface height anomaly
+filename='./'+dataset_tst1+'/SSHA/'+'ssha.mat'
+data=h5py.File(filename,mode='r')
+SSHA1= data['ssha'][:]
 
-SSHA1    =   np.full([len(time_tst1),num_lat, num_lon], np.nan)
-SSTA1    =   np.full([len(time_tst1),num_lat, num_lon], np.nan)
-SMHW1    =   np.full([len(time_tst1),num_lat, num_lon], np.nan)
+# Sea surface temperature anomaly
+filename='./'+dataset_tst1+'/SSTA/'+'ssta.mat'
+data=h5py.File(filename,mode='r')
+SSTA1= data['ssta'][:]
 
-M1    =  np.where(YY_2==LAT[0])[0]
-M2    =  np.where(YY_2==LAT[-1])[0]
-N1    =  np.where(XX_2==LON[0])[0]
-N2    =  np.where(XX_2==LON[-1])[0]
-
-
-print('load tst1 dataset')
-for i in range(6): 
-    
-    part = i + 1
-    
-    # Sea surface height anomaly
-    filename='./'+dataset_tst1+'/SSHA/'+'ssha'+str(part)+'.mat'
-    data=h5py.File(filename,mode='r')
-    data = data['ssha'][:]
-    data= data.transpose(0,2,1)
-    SSHA1[:,:,i*60:(i+1)*60]=data[time_tst1,M1[0]:M2[0]+1:2,::2]
-
-    # Sea surface temperature anomaly
-    filename='./'+dataset_tst1+'/SSTA/'+'ssta'+str(part)+'.mat'
-    data=h5py.File(filename,mode='r')
-    data = data['ssta'][:]
-    data= data.transpose(0,2,1)
-    SSTA1[:,:,i*60:(i+1)*60]=data[time_tst1,M1[0]:M2[0]+1:2,::2]
-
-    # Subsurface marine heatwaves
-    filename='./'+dataset_tst1+'/'+str(depth)+'m/'+'smhw'+str(part)+'.mat'
-    data=h5py.File(filename,mode='r')
-    data = data['smhw'][:]
-    data= data.transpose(0,2,1)
-    SMHW1[:,:,i*60:(i+1)*60]=data[time_tst1,M1[0]:M2[0]+1:2,::2]
-
+# Subsurface marine heatwaves
+filename='./'+dataset_tst1+'/'+str(depth)+'m/'+'smhw.mat'
+data=h5py.File(filename,mode='r')
+SMHW1 = data['smhw'][:]
 
 SSHA1 = standardization(SSHA1,SSHA1)
 SSTA1 = standardization(SSTA1,SSTA1)
@@ -452,43 +374,20 @@ tst1_iter = DataLoader(dataset=tst_ids1, batch_size=Batch_size, shuffle=False)
 
 
 # ================================= tst2 dataset ==============================
+# Sea surface height anomaly
+filename='./'+dataset_tst2+'/SSHA/'+'ssha.mat'
+data=h5py.File(filename,mode='r')
+SSHA2 = data['ssha'][:]
 
-SSHA2    =   np.full([len(time_tst2),num_lat, num_lon], np.nan)
-SSTA2    =   np.full([len(time_tst2),num_lat, num_lon], np.nan)
-SMHW2    =   np.full([len(time_tst2),num_lat, num_lon], np.nan)
+# Sea surface temperature anomaly
+filename='./'+dataset_tst2+'/SSTA/'+'ssta.mat'
+data=h5py.File(filename,mode='r')
+SSTA2= data['ssta'][:]
 
-M1    =  np.where(YY_3==LAT[0])[0]
-M2    =  np.where(YY_3==LAT[-1])[0]
-N1    =  np.where(XX_3==LON[0])[0]
-N2    =  np.where(XX_3==LON[-1])[0]
-
-
-print('load tst2 dataset')
-for i in range(6): 
-    
-    part = i + 1
-    
-    # Sea surface height anomaly
-    filename='./'+dataset_tst2+'/SSHA/'+'ssha'+str(part)+'.mat'
-    data=h5py.File(filename,mode='r')
-    data = data['ssha'][:]
-    data= data.transpose(0,2,1)
-    SSHA2[:,:,i*60:(i+1)*60]=data[time_tst2,M1[0]:M2[0]+1:2,::2]
-
-    # Sea surface temperature anomaly
-    filename='./'+dataset_tst2+'/SSTA/'+'ssta'+str(part)+'.mat'
-    data=h5py.File(filename,mode='r')
-    data = data['ssta'][:]
-    data= data.transpose(0,2,1)
-    SSTA2[:,:,i*60:(i+1)*60]=data[time_tst2,M1[0]:M2[0]+1:2,::2]
-
-    # Subsurface marine heatwaves
-    filename='./'+dataset_tst2+'/'+str(depth)+'m/'+'smhw'+str(part)+'.mat'
-    data=h5py.File(filename,mode='r')
-    data = data['smhw'][:]
-    data= data.transpose(0,2,1)
-    SMHW2[:,:,i*60:(i+1)*60]=data[time_tst2,M1[0]:M2[0]+1:2,::2]
-
+# Subsurface marine heatwaves
+filename='./'+dataset_tst2+'/'+str(depth)+'m/'+'smhw.mat'
+data=h5py.File(filename,mode='r')
+SMHW2 = data['smhw'][:]
 
 SSHA2 = standardization(SSHA2,SSHA2)
 SSTA2 = standardization(SSTA2,SSTA2)
@@ -522,9 +421,9 @@ class Reshape(torch.nn.Module):
 
 net = torch.nn.Sequential(
     Reshape(), 
-    nn.Conv2d(2, 16, kernel_size=5,padding=2), nn.Sigmoid(),
-    nn.Conv2d(16, 32, kernel_size=5,padding=2), nn.Sigmoid(),
-    nn.Conv2d(32, 2, kernel_size=5,padding=2))
+    nn.Conv2d(2, 16, kernel_size=3,padding=1), nn.Sigmoid(),
+    nn.Conv2d(16, 32, kernel_size=3,padding=1), nn.Sigmoid(),
+    nn.Conv2d(32, 2, kernel_size=3,padding=1))
 
 
 X = torch.rand(size=(1, channel, num_lat, num_lon), dtype=torch.float32)
@@ -562,8 +461,6 @@ scio.savemat(savepath2+'tst1_loss.mat',{'tst1_loss':tst1_loss})
 scio.savemat(savepath3+'tst2_loss.mat',{'tst2_loss':tst2_loss})
 
 
-
-
 # Save confusion matrix for the first test dataset
 A, B, C, D = obtain_confusion_matrix(net, tst1_iter ,num_lat,num_lon)
 
@@ -573,7 +470,6 @@ C = C.cpu().numpy()
 D = D.cpu().numpy()
 
 savepath = '.'+dataset_trn+'-'+dataset_tst1+'/'+str(depth)+'m/'
-
 scio.savemat(savepath+'A.mat',{'A':A})  
 scio.savemat(savepath+'B.mat',{'B':B})  
 scio.savemat(savepath+'C.mat',{'C':C})  
@@ -591,7 +487,6 @@ C = C.cpu().numpy()
 D = D.cpu().numpy()
 
 savepath = './'+dataset_trn+'-'+dataset_tst2+'/'+str(depth)+'m/'
-
 scio.savemat(savepath+'A.mat',{'A':A})  
 scio.savemat(savepath+'B.mat',{'B':B})  
 scio.savemat(savepath+'C.mat',{'C':C})  
