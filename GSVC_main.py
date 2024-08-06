@@ -6,9 +6,7 @@ from mpi4py import MPI
 from datetime import date
 import scipy.io as scio  
 import GSVC_fun as GSVC
-
-
-
+import pandas as pd
 
 
 
@@ -37,26 +35,16 @@ def Calculate_beta_by_GSVC(rank,LON,LAT,width_time,width_space,depth):
     # Select a longitude according to rank and calculate the coefficients.
     # You can also choose multiple columns to calculate, depending on the task allocation of each thread in your parallel
     lon=LON[rank]
-    length=len(lon)
     dim = 3
 
-    # time :
-    year_trn_begin  =  1994
-    year_trn_end    =  2019
-
-    # Longitude and latitude range of the dataset: data accuracy is 0.5° * 0.5°
-    acc = 0.5
-    XX  =  np.arange(210.125, 220.125, acc)
-    YY  =  np.arange(0.125, 5.125, acc)
+    # Longitude and latitude range of the dataset: the space resolution of data is 0.5° * 0.5°
+    resolution = 0.5
+    XX  =  np.arange(0.125, 360.125, resolution)
+    YY  =  np.arange(-89.875, 90.125, resolution)
      
     # Calculate the amount of data based on the bandwidth
     width_time   =  2 * width_time  
     width_space  =  int( 1/acc * width_space * 2 ) # The amount of data corresponding to the Meridional bandwidth
-    
-    
-    
-    
-    
     
     
     
@@ -87,29 +75,7 @@ def Calculate_beta_by_GSVC(rank,LON,LAT,width_time,width_space,depth):
     
     
     
-    
-    
-    
-    
-    # ---------------- 3 Find the corresponding calendar day ------------------
-    
-    # Find the date corresponding to the same calendar day from 1 to 365
-    calendar_day365 = np.array([date.toordinal(date(Year, 1, 1)) - date.toordinal(date(year_trn_begin, 12, 31)) for Year in range(year_trn_begin + 1, year_trn_end + 1)])
-    calendar_day365 = calendar_day365-1
-    
-    
-    # Find the date corresponding to the same calendar day for 366   
-    calendar_day366 = np.array([date.toordinal(date(Year, 12, 31)) - date.toordinal(date(year_trn_begin - 1, 12, 31)) for Year in range(year_trn_begin, year_trn_end + 1) if (np.mod(Year, 4) == 0)])
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    # ------------------ 4 Load data (SSTA / SSHA /SUBTA)  --------------------
+    # ------------------ 3 Load data (SSTA / SSHA /SUBTA)  --------------------
      
     # Judge the block position : the size of each piece of raw data is 340 * 120, totally 6 pieces.
     N    =  np.where(XX==LON[rank])[0]
@@ -140,7 +106,6 @@ def Calculate_beta_by_GSVC(rank,LON,LAT,width_time,width_space,depth):
         J  = [part, part+1]
         p1 = xcoord[np.where(xcoord<120)[0]]
         p2 = xcoord[np.where(xcoord>119)[0]] - width_data_block  
-
     else:
         #unspliced
         J  = [part]
@@ -150,11 +115,7 @@ def Calculate_beta_by_GSVC(rank,LON,LAT,width_time,width_space,depth):
     J = np.array(J)
     J[J < 1] += 6
     J[J > 6] -= 6
-
     p=[p1,p2]
-    
-
-    
 
     height =  width_space*2+height_data_block
     width  =  width_space*4+1 
@@ -168,139 +129,92 @@ def Calculate_beta_by_GSVC(rank,LON,LAT,width_time,width_space,depth):
     for i in range(len(J)): 
         
         # Sea surface height anomaly
-        filename='./SSHA/'+'ssha'+str(J[i])+'.mat'
+        filename='.../SSH/0.5/'+'ssh'+str(J[i])+'.mat'
         data=h5py.File(filename,mode='r')
-        data = data['ssha'][:]
-        data= data.transpose(2,1,0)
+        data = data['ssh'][:].transpose(2,1,0)
         SSHA[width_space:width_space+height_data_block,add:add+len(p[i]),:]=data[:,p[i],:]
-    
+
         # Sea surface temperature anomaly
-        filename='./SSTA/'+'ssta'+str(J[i])+'.mat'
+        filename='.../5m/0.5/'+'thetao'+str(J[i])+'.mat'
         data=h5py.File(filename,mode='r')
-        data = data['ssta'][:]
-        data= data.transpose(2,1,0)
+        data = data['thetao'][:].transpose(2,1,0)
         SSTA[width_space:width_space+height_data_block,add:add+len(p[i]),:]=data[:,p[i],:]
         
         # Subsurface temperature anomaly
-        filename='./SUBTA/'+str(depth)+'m/'+'subta'+str(J[i])+'.mat'
+        filename='.../'+str(depth)+'m/0.5/'+'thetao'+str(J[i])+'.mat'
         data=h5py.File(filename,mode='r')
-        data = data['subta'][:]
-        data= data.transpose(2,1,0)
+        data = data['thetao'][:].transpose(2,1,0)
         SUBTA[width_space:width_space+height_data_block,add:add+len(p[i]),:]=data[:,p[i],:]
         
         add=len(p[i])
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    # ----------- 5 Calculate the coefficients of the GSVC model  -------------
-    
-    # Used to store results
-    BETA  =   np.full([len(LAT),length,366,dim], np.nan)
 
     
-    # Start with data0
-    date0=date.toordinal(date(year_trn_begin,1,1))-date.toordinal(date(1993,1,1)) 
+    # ----------- 4 Calculate the coefficients of the GSVC model  -------------
     
-    # =============================================================================           
-    #  for calendar_day3665
-    # =============================================================================
- 
-    dataw_rep = np.tile(dataw, (1, 1, len(calendar_day365)))
-    # Weight matrix for repeated samples
-    
-    for t1 in range(365):  
-    
+    # Used to store results
+    BETA  =   np.full([len(LAT),len(lon),366,dim], np.nan)
+
+    start_date = '1993-01-01'
+    end_date = '2020-12-31'
+    date_range = pd.date_range(start=start_date, end=end_date)
+    dates_2012 = date_range.map(lambda x: x.replace(year=2012))
+    day_of_year = np.array(dates_2012.map(lambda x: x.timetuple().tm_yday))
+    idx = np.arange(len(day_of_year))
+
+
+
+    for t1 in range(366):  
+            
+        center_day = np.where(day_of_year==t1+1)[0]
+
+        target_day = []
+        year_num=0
+        for pos in center_day:
+            start = pos-width_time
+            end = pos+width_time+1
+            if start>idx[0] and end<idx[-1]:
+                year_num=year_num+1
+                target_day.append(idx[start:end])
+        target_day = np.array(target_day)
+        print(target_day)
+        target_day = np.reshape(target_day,-1)
+
+        # Weight matrix for repeated samples
+        dataw_rep = np.tile(dataw, (1, 1, year_num))
+        print(dataw_rep.shape)
+        dataw_rep = dataw_rep.transpose(1,0,2)
+
+
         for j in range(len(LAT)):      
-    
+
             lat=LAT[j]
-      
+            print(lat)
+            
             n = np.where(YY==lat)[0]
             x_c   =   math.floor(width/2)
             y_c = n+width_space
-    
             # Determine if the spot is land
             e1 = np.isnan(SSTA[y_c, x_c, 1]).astype(int)
             e2 = np.isnan(SSHA[y_c, x_c, 1]).astype(int)
             e3 = np.isnan(SUBTA[y_c, x_c, 1]).astype(int)
+            exist=e1+e2+e3
 
-            exist=e1*e2*e3
-    
-            
-            if exist==0:
+            if exist>0:
                 continue
             else:
-                
-                #Select data on same calendar day of each year within the bandwidth
-                
-                #+++++++++++++++++++++++++++  time  ++++++++++++++++++++++++++
-                TIME = np.concatenate([np.arange(date0 + t1 + calendar_day365[k] - width_time, date0 + t1 + calendar_day365[k] + width_time + 1, 1) for k in range(len(calendar_day365))])
-
+                print('cal')
                 #+++++++++++++++++++++++++++Set location++++++++++++++++++++++++++ 
                 ycoord = np.arange(y_c-1*width_space,y_c+1*width_space+1,1)
-                
                 # ++++++++++++++++++++++++++Process X and Y++++++++++++++++++++++++++
-                X_SSTA    =   SSTA[ycoord,:,TIME]
-                X_SSHA    =   SSHA[ycoord,:,TIME]
-                Y_SUBTA   =   SUBTA[ycoord,:,TIME]
-               
-                
+                X_SSTA    =   SSTA[ycoord,:,:]
+                X_SSTA    =   X_SSTA [:,:,target_day]
+                X_SSHA    =   SSHA[ycoord,:,:]
+                X_SSHA    =   X_SSHA[:,:,target_day]
+                Y_SUBTA   =   SUBTA[ycoord,:,:]
+                Y_SUBTA   =   Y_SUBTA[:,:,target_day]
+
                 BETA[j, 0, t1, :] = GSVC.GSVC(X_SSTA, X_SSHA, Y_SUBTA, dataw_rep).flatten()
-
-                
-                
-                
-                
-    # =============================================================================           
-    #  for calendar_day366  
-    # =============================================================================
-    dataw_rep = np.tile(dataw, (1, 1, len(calendar_day366)))
-    # Weight matrix for repeated samples  
-
-    for j in range(len(LAT)):
-        
-        lat=LAT[j]
-        
-        n = np.where(YY==lat)[0]
-        x_c   =   math.floor(width/2)
-        y_c = n+width_space
-    
-        # Determine if the spot is land
-        e1 = np.isnan(SSTA[y_c, x_c, 1]).astype(int)
-        e2 = np.isnan(SSHA[y_c, x_c, 1]).astype(int)
-        e3 = np.isnan(SUBTA[y_c, x_c, 1]).astype(int)
-    
-        exist=e1*e2*e3
-        
-        if exist==0:
-            continue
-        else:
-            
-            #Select data on same calendar day of each year within the bandwidth
-            
-            #+++++++++++++++++++++++++++  time  ++++++++++++++++++++++++++
-            TIME = np.concatenate([np.arange(date0 + t1 + calendar_day366[k] - width_time, date0 + t1 + calendar_day366[k] + width_time + 1, 1) for k in range(len(calendar_day366))])
-
-            #+++++++++++++++++++++++++++Set location++++++++++++++++++++++++++ 
-            ycoord = np.arange(y_c-1*width_space,y_c+1*width_space+1,1)
-            
-            # ++++++++++++++++++++++++++Process X and Y++++++++++++++++++++++++++
-            X_SSTA    =   SSTA[ycoord,:,TIME]
-            X_SSHA    =   SSHA[ycoord,:,TIME]
-            Y_SUBTA   =   SUBTA[ycoord,:,TIME]
-           
-
-            BETA[j, 0, 365, :] = GSVC.GSVC(X_SSTA, X_SSHA, Y_SUBTA, dataw_rep).flatten()
-          
-    
     return BETA
-
-
 
 
 '''
