@@ -1,9 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Sep 07 15:31:35 2023
 
-@author: kelis
-"""
 
 import numpy as np
 import h5py
