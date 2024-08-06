@@ -12,9 +12,7 @@ import torch
 from torch import nn
 from torch.utils.data import TensorDataset
 from torch.utils.data import DataLoader
-import datetime
 from d2l import torch as d2l
-from datetime import timedelta
 
 
 
@@ -258,8 +256,6 @@ dataset_trn = 'GLORYS'
 dataset_tst1 = 'ECCO2'
 dataset_tst2 = 'HYCOM'
 
-
-
 LON = np.arange(0.125, 360.125, 1)
 LAT = np.arange(-59.375, 60.625, 1)
 
@@ -267,32 +263,6 @@ num_lon = len(LON)
 num_lat = len(LAT)
 
 
-# X & Y coordinates for training and test datasets
-XX_1  =  np.arange(0.125, 359.875, 0.5)
-YY_1  =  np.arange(-79.875, 89.875, 0.5)
-XX_2  =  np.arange(0.125, 359.875, 0.5)
-YY_2  =  np.arange(-89.875, 89.875, 0.5)
-XX_3  =  np.arange(0.125, 359.875, 0.5)
-YY_3  =  np.arange(-59.875, 59.875, 0.5)
-
-
-
-# time for training and test datasets
-year_trn_begin  =  1993
-year_trn_end    =  2020
-
-year_tst_begin1  =  1993
-year_tst_end1    =  2020
-
-year_tst_begin2  =  1993
-year_tst_end2    =  2012
-
-#ECCO2
-length_trn1  =  (datetime.date(year_trn_end, 12, 31)-datetime.date(year_trn_begin, 1, 1)).days+1
-#GLORYS
-length_tst2   =  (datetime.date(year_tst_end1, 12, 31)-datetime.date(year_tst_begin1, 1, 1)).days+1
-#HYCOM
-length_tst3   =   (datetime.date(year_tst_end2, 12, 31)-datetime.date(year_tst_begin2, 1, 1)).days+1
 
 
 
